@@ -1,0 +1,59 @@
+version: '3.8'
+services:
+  frontend:
+    image: cr.yandexcloud.kz/crksp0ersei7pfkuvqsc/blog-landing:latest
+    ports:
+      - "3000:3000"
+    networks:
+      - intranet
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  nginx:
+      container_name: nginx
+      image: nginx:1.25.3-alpine
+      ports:
+        - "80:80"
+        - "443:443"
+      restart: always
+      volumes:
+        - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+        - ./nginx/sites-enabled/:/etc/nginx/sites-enabled/:ro
+        - ./certbot/www:/var/www/certbot/:ro
+        - ./certbot/conf/:/etc/nginx/ssl/:ro
+      depends_on:
+        - backend
+        - frontend
+      networks:
+        - intranet
+      labels:
+        - "com.centurylinklabs.watchtower.enable=false"
+
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - ./certbot/www/:/var/www/certbot/:rw
+      - ./certbot/conf/:/etc/letsencrypt/:rw
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
+
+
+  watchtower:
+    image: containrrr/watchtower
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/timezone:/etc/timezone:ro
+      - /root/.docker/config.json:/config.json
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_LABEL_ENABLE=true
+      - WATCHTOWER_INCLUDE_RESTARTING=true
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    command: --interval 30 --cleanup
+
+networks:
+  intranet:
+    driver: bridge
+
